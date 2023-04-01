@@ -20,7 +20,8 @@ class Article(db.Model):
 @app.route('/')
 @app.route('/home')
 def index():
-    return render_template("index.html")
+    articles=Article.query.order_by(Article.date.desc()).all()
+    return render_template("index.html", articles=articles)
 
 @app.route('/about')
 def about():
@@ -28,13 +29,43 @@ def about():
 
 @app.route('/сontacts')
 def сontacts():
-    return '<h1>Contacts: </h1>' \
-           '<h3>Isaevaa@tut.by</h3>'
+    return render_template("contacts.html")
 
 @app.route('/posts')
 def posts():
-    articles=Article.query.order_by(Article.date).all()  # вывод всех записай, first() - вывести только первую запись
+    articles=Article.query.order_by(Article.date.desc()).all()  # вывод всех записай, first() - вывести только первую запись
     return render_template("posts.html", articles=articles)
+
+@app.route('/posts/<int:id>')
+def post_detail(id):
+    article = Article.query.get(id)
+    return render_template("post_detail.html", article=article)
+
+@app.route('/posts/<int:id>/delete')
+def post_delete(id):
+    article = Article.query.get_or_404(id)
+    try:
+        db.session.delete(article)
+        db.session.commit()
+        return redirect('/posts')
+    except():
+        return "При удалении статьи произошла ошибка"
+
+@app.route('/posts/<int:id>/update', methods=['POST','GET'])
+def post_update(id):
+    article = Article.query.get(id)
+    if request.method == "POST":
+        article.title = request.form['title']
+        article.intro = request.form['intro']
+        article.text = request.form['text']
+        try:
+            db.session.commit()
+            return redirect('/posts')
+        except():
+            return "При добавлении статьи произошла ошибка"
+    else:
+        article = Article.query.get(id)
+        return render_template('post_update.html', article=article)
 
 @app.route('/create-article', methods=['POST','GET'])
 def create_article():
@@ -46,11 +77,13 @@ def create_article():
         try:
             db.session.add(article)
             db.session.commit()
-            return redirect('/')
+            return redirect('/posts')
         except:
             return 'ошибка'
     else:
         return render_template("create-article.html")
+
+
 
 if __name__ == '__main__':
     with app.app_context():
